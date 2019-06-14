@@ -67,4 +67,6 @@
 
   <string name="random_abr">Enable random ABR</string>
 
+  <string name="tunnel_mode">Enable tunnel mode</string>
+
 </resources>

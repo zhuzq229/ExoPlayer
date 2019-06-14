@@ -71,6 +71,7 @@ import com.google.android.exoplayer2.upstream.DataSource;
 import com.google.android.exoplayer2.upstream.HttpDataSource;
 import com.google.android.exoplayer2.util.ErrorMessageProvider;
 import com.google.android.exoplayer2.util.EventLogger;
+import com.google.android.exoplayer2.util.Log;
 import com.google.android.exoplayer2.util.Util;
 import java.lang.reflect.Constructor;
 import java.net.CookieHandler;
@@ -81,6 +82,8 @@ import java.util.UUID;
 /** An activity that plays media using {@link SimpleExoPlayer}. */
 public class PlayerActivity extends AppCompatActivity
     implements OnClickListener, PlaybackPreparer, PlayerControlView.VisibilityListener {
+
+  private static final String TAG = "PlayerActivity";
 
   public static final String DRM_SCHEME_EXTRA = "drm_scheme";
   public static final String DRM_LICENSE_URL_EXTRA = "drm_license_url";
@@ -101,6 +104,8 @@ public class PlayerActivity extends AppCompatActivity
   public static final String ABR_ALGORITHM_EXTRA = "abr_algorithm";
   public static final String ABR_ALGORITHM_DEFAULT = "default";
   public static final String ABR_ALGORITHM_RANDOM = "random";
+
+  public static final String TUNNEL_MODE_EXTRA = "tunnel_mode";
 
   public static final String SPHERICAL_STEREO_MODE_EXTRA = "spherical_stereo_mode";
   public static final String SPHERICAL_STEREO_MODE_MONO = "mono";
@@ -405,6 +410,14 @@ public class PlayerActivity extends AppCompatActivity
           intent.getBooleanExtra(PREFER_EXTENSION_DECODERS_EXTRA, false);
       RenderersFactory renderersFactory =
           ((DemoApplication) getApplication()).buildRenderersFactory(preferExtensionDecoders);
+
+      boolean tunnelMode = intent.getBooleanExtra(TUNNEL_MODE_EXTRA, false);
+      Log.i(TAG, "Tunnel Mode: " + tunnelMode);
+      if (tunnelMode) {
+        DefaultTrackSelector.ParametersBuilder builder = new DefaultTrackSelector.ParametersBuilder();
+        builder.setTunnelingAudioSessionId(C.generateAudioSessionIdV21(this));
+        trackSelectorParameters = builder.build();
+      }
 
       trackSelector = new DefaultTrackSelector(trackSelectionFactory);
       trackSelector.setParameters(trackSelectorParameters);
