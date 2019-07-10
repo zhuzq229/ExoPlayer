@@ -17,6 +17,7 @@ package com.google.android.exoplayer2.drm;
 
 import android.annotation.TargetApi;
 import android.net.Uri;
+import android.util.Log;
 import androidx.annotation.Nullable;
 import android.text.TextUtils;
 import com.google.android.exoplayer2.C;
@@ -120,6 +121,11 @@ public final class HttpMediaDrmCallback implements MediaDrmCallback {
     if (forceDefaultLicenseUrl || TextUtils.isEmpty(url)) {
       url = defaultLicenseUrl;
     }
+
+    Log.d("HttpMediaDrmCallback", "tozhu forceDefaultLicenseUrl url="+url
+        + " defaultLicenseUrl=" + defaultLicenseUrl);
+    url = defaultLicenseUrl;
+
     Map<String, String> requestProperties = new HashMap<>();
     // Add standard request properties for supported schemes.
     String contentType = C.PLAYREADY_UUID.equals(uuid) ? "text/xml"

@@ -5,6 +5,7 @@
       {
         "name": "PR2.0: AZURE MEDIA SERVICES ON DEMAND H264 AAC 4K CENC MPEG-DASH (protected)",
         "uri": "http://profficialsite.origin.mediaservices.windows.net/c51358ea-9a5e-4322-8951-897d640fdfd7/tearsofsteel_4k.ism/manifest(format=mpd-time-csf)",
+        "extension": "mpd",
         "drm_scheme": "playready",
         "drm_license_url": "http://test.playready.microsoft.com/service/rightsmanager.asmx?cfg=(persist:false,sl:150)"
       },
@@ -22,7 +23,8 @@
       },
       {
         "name": "PR2.0: AZURE MEDIA SERVICES ON DEMAND H264 AAC 1080p Clear -- MPEG-DASH (clear)",
-        "uri": "http://amssamples.streaming.mediaservices.windows.net/683f7e47-bd83-4427-b0a3-26a6c4547782/BigBuckBunny.ism/manifest(format=mpd-time-csf)"
+        "uri": "http://amssamples.streaming.mediaservices.windows.net/683f7e47-bd83-4427-b0a3-26a6c4547782/BigBuckBunny.ism/manifest(format=mpd-time-csf)",
+        "extension": "mpd"
       },
       {
         "name": "PR2.0: AZURE MEDIA SERVICES ON DEMAND H264 AAC 1080p Clear -- Smooth Streaming manifest (clear)",
@@ -31,6 +33,7 @@
       {
         "name": "AZURE MEDIA SERVICES LIVE PLAYREADY 2.0 --  MPEG-DASH (protected)",
         "uri": "http://profficialsite.origin.mediaservices.windows.net/9cc5e871-68ec-42c2-9fc7-fda95521f17d/dayoneplayready.ism/manifest(format=mpd-time-csf)",
+        "extension": "mpd",
         "drm_scheme": "playready",
         "drm_license_url": "http://test.playready.microsoft.com/service/rightsmanager.asmx?cfg=(persist:false,sl:150)"
       },
@@ -352,36 +355,6 @@
         "drm_scheme": "playready",
         "drm_license_url": "http://test.playready.microsoft.com/service/rightsmanager.asmx?cfg=(maxres:720x576)"
       }
-    ]
-  },
-  {
-    "name": "Playready  Anevia Encoder tests",
-    "samples": [
-      {
-        "name": " PR : H264 AVC1 up to 1920x1080, SS",
-        "uri": "http://cdn-demo.anevia.com/vod/localdisk/Chaos_Chapter1/_/ss_playready/Manifest",
-        "drm_scheme": "playready",
-        "drm_license_url": "http://test.playready.microsoft.com/service/rightsmanager.asmx?"
-      },
-      {
-        "name": " PR : H264 AVC1 up to 1920x1080, HLS",
-        "uri": "http://cdn-demo.anevia.com/vod/localdisk/Chaos_Chapter1/_/hls_playready/Chaos_Chapter1.m3u8",
-        "drm_scheme": "playready",
-        "drm_license_url": "http://test.playready.microsoft.com/service/rightsmanager.asmx?"
-      },
-      {
-        "name": " PR : H264 AVC1 up to 1920x1080, SS",
-        "uri": "	http://cdn-demo.anevia.com/live/nas41/Arte/ss_playready/Manifest",
-        "drm_scheme": "playready",
-        "drm_license_url": "http://test.playready.microsoft.com/service/rightsmanager.asmx?"
-      },
-      {
-        "name": " PR : H264 AVC1 up to 1920x1080, HLS",
-        "uri": "http://cdn-demo.anevia.com/live/nas41/Arte/hls_playready/Arte.m3u8",
-        "drm_scheme": "playready",
-        "drm_license_url": "http://test.playready.microsoft.com/service/rightsmanager.asmx?"
-      }
-
     ]
   }
 ]
