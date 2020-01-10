@@ -21,6 +21,7 @@ import androidx.test.core.app.ApplicationProvider;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import com.google.android.exoplayer2.testutil.ExtractorAsserts;
 import org.junit.Before;
+import org.junit.Test;
 import org.junit.runner.RunWith;
 
 /** Unit test for {@link FlacExtractor}. */
@@ -28,17 +29,19 @@ import org.junit.runner.RunWith;
 public class FlacExtractorTest {
 
   @Before
-  public void setUp() throws Exception {
+  public void setUp() {
     if (!FlacLibrary.isAvailable()) {
       fail("Flac library not available.");
     }
   }
 
+  @Test
   public void testExtractFlacSample() throws Exception {
     ExtractorAsserts.assertBehavior(
         FlacExtractor::new, "bear.flac", ApplicationProvider.getApplicationContext());
   }
 
+  @Test
   public void testExtractFlacSampleWithId3Header() throws Exception {
     ExtractorAsserts.assertBehavior(
         FlacExtractor::new, "bear_with_id3.flac", ApplicationProvider.getApplicationContext());

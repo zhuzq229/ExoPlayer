@@ -49,12 +49,10 @@ public final class CacheDataSink implements DataSink {
   private final long fragmentSize;
   private final int bufferSize;
 
-  private boolean syncFileDescriptor;
   private DataSpec dataSpec;
   private long dataSpecFragmentSize;
   private File file;
   private OutputStream outputStream;
-  private FileOutputStream underlyingFileOutputStream;
   private long outputStreamBytesWritten;
   private long dataSpecBytesWritten;
   private ReusableBufferedOutputStream bufferedOutputStream;
@@ -108,18 +106,6 @@ public final class CacheDataSink implements DataSink {
     this.cache = Assertions.checkNotNull(cache);
     this.fragmentSize = fragmentSize == C.LENGTH_UNSET ? Long.MAX_VALUE : fragmentSize;
     this.bufferSize = bufferSize;
-    syncFileDescriptor = true;
-  }
-
-  /**
-   * Sets whether file descriptors are synced when closing output streams.
-   *
-   * <p>This method is experimental, and will be renamed or removed in a future release.
-   *
-   * @param syncFileDescriptor Whether file descriptors are synced when closing output streams.
-   */
-  public void experimental_setSyncFileDescriptor(boolean syncFileDescriptor) {
-    this.syncFileDescriptor = syncFileDescriptor;
   }
 
   @Override
@@ -184,7 +170,7 @@ public final class CacheDataSink implements DataSink {
     file =
         cache.startFile(
             dataSpec.key, dataSpec.absoluteStreamPosition + dataSpecBytesWritten, length);
-    underlyingFileOutputStream = new FileOutputStream(file);
+    FileOutputStream underlyingFileOutputStream = new FileOutputStream(file);
     if (bufferSize > 0) {
       if (bufferedOutputStream == null) {
         bufferedOutputStream = new ReusableBufferedOutputStream(underlyingFileOutputStream,
@@ -199,7 +185,6 @@ public final class CacheDataSink implements DataSink {
     outputStreamBytesWritten = 0;
   }
 
-  @SuppressWarnings("ThrowFromFinallyBlock")
   private void closeCurrentOutputStream() throws IOException {
     if (outputStream == null) {
       return;
@@ -208,9 +193,6 @@ public final class CacheDataSink implements DataSink {
     boolean success = false;
     try {
       outputStream.flush();
-      if (syncFileDescriptor) {
-        underlyingFileOutputStream.getFD().sync();
-      }
       success = true;
     } finally {
       Util.closeQuietly(outputStream);

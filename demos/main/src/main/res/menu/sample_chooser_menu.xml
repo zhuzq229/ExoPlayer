@@ -23,8 +23,8 @@
       android:title="@string/random_abr"
       android:checkable="true"
       app:showAsAction="never"/>
-  <item android:id="@+id/tunnel_mode"
-      android:title="@string/tunnel_mode"
+  <item android:id="@+id/tunneling"
+      android:title="@string/tunneling"
       android:checkable="true"
       app:showAsAction="never"/>
 </menu>

@@ -243,7 +243,7 @@ public class HlsMasterPlaylistParserTest {
     List<HlsMasterPlaylist.Variant> variants = masterPlaylist.variants;
 
     assertThat(variants.get(0).format.bitrate).isEqualTo(1280000);
-    assertThat(variants.get(1).format.bitrate).isEqualTo(1270000);
+    assertThat(variants.get(1).format.bitrate).isEqualTo(1280000);
   }
 
   @Test
@@ -263,7 +263,7 @@ public class HlsMasterPlaylistParserTest {
     Format closedCaptionFormat = playlist.muxedCaptionFormats.get(0);
     assertThat(closedCaptionFormat.sampleMimeType).isEqualTo(MimeTypes.APPLICATION_CEA708);
     assertThat(closedCaptionFormat.accessibilityChannel).isEqualTo(4);
-    assertThat(closedCaptionFormat.language).isEqualTo("spa");
+    assertThat(closedCaptionFormat.language).isEqualTo("es");
   }
 
   @Test

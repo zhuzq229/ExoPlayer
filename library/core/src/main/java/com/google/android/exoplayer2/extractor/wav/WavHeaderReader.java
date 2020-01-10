@@ -15,6 +15,7 @@
  */
 package com.google.android.exoplayer2.extractor.wav;
 
+import androidx.annotation.Nullable;
 import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.ParserException;
 import com.google.android.exoplayer2.audio.WavUtil;
@@ -22,7 +23,6 @@ import com.google.android.exoplayer2.extractor.ExtractorInput;
 import com.google.android.exoplayer2.util.Assertions;
 import com.google.android.exoplayer2.util.Log;
 import com.google.android.exoplayer2.util.ParsableByteArray;
-import com.google.android.exoplayer2.util.Util;
 import java.io.IOException;
 
 /** Reads a {@code WavHeader} from an input stream; supports resuming from input failures. */
@@ -40,6 +40,7 @@ import java.io.IOException;
    * @return A new {@code WavHeader} peeked from {@code input}, or null if the input is not a
    *     supported WAV format.
    */
+  @Nullable
   public static WavHeader peek(ExtractorInput input) throws IOException, InterruptedException {
     Assertions.checkNotNull(input);
 
@@ -92,8 +93,8 @@ import java.io.IOException;
     // If present, skip extensionSize, validBitsPerSample, channelMask, subFormatGuid, ...
     input.advancePeekPosition((int) chunkHeader.size - 16);
 
-    return new WavHeader(numChannels, sampleRateHz, averageBytesPerSecond, blockAlignment,
-        bitsPerSample, encoding);
+    return new WavHeader(
+        numChannels, sampleRateHz, averageBytesPerSecond, blockAlignment, bitsPerSample, encoding);
   }
 
   /**
@@ -122,11 +123,13 @@ import java.io.IOException;
     ParsableByteArray scratch = new ParsableByteArray(ChunkHeader.SIZE_IN_BYTES);
     // Skip all chunks until we hit the data header.
     ChunkHeader chunkHeader = ChunkHeader.peek(input, scratch);
-    while (chunkHeader.id != Util.getIntegerCodeForString("data")) {
-      Log.w(TAG, "Ignoring unknown WAV chunk: " + chunkHeader.id);
+    while (chunkHeader.id != WavUtil.DATA_FOURCC) {
+      if (chunkHeader.id != WavUtil.RIFF_FOURCC && chunkHeader.id != WavUtil.FMT_FOURCC) {
+        Log.w(TAG, "Ignoring unknown WAV chunk: " + chunkHeader.id);
+      }
       long bytesToSkip = ChunkHeader.SIZE_IN_BYTES + chunkHeader.size;
       // Override size of RIFF chunk, since it describes its size as the entire file.
-      if (chunkHeader.id == Util.getIntegerCodeForString("RIFF")) {
+      if (chunkHeader.id == WavUtil.RIFF_FOURCC) {
         bytesToSkip = ChunkHeader.SIZE_IN_BYTES + 4;
       }
       if (bytesToSkip > Integer.MAX_VALUE) {
@@ -138,7 +141,14 @@ import java.io.IOException;
     // Skip past the "data" header.
     input.skipFully(ChunkHeader.SIZE_IN_BYTES);
 
-    wavHeader.setDataBounds(input.getPosition(), chunkHeader.size);
+    int dataStartPosition = (int) input.getPosition();
+    long dataEndPosition = dataStartPosition + chunkHeader.size;
+    long inputLength = input.getLength();
+    if (inputLength != C.LENGTH_UNSET && dataEndPosition > inputLength) {
+      Log.w(TAG, "Data exceeds input length: " + dataEndPosition + ", " + inputLength);
+      dataEndPosition = inputLength;
+    }
+    wavHeader.setDataBounds(dataStartPosition, dataEndPosition);
   }
 
   private WavHeaderReader() {

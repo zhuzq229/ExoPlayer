@@ -25,6 +25,7 @@ import com.google.android.exoplayer2.testutil.FakeExtractorInput;
 import com.google.android.exoplayer2.testutil.TestUtil;
 import java.io.IOException;
 import org.junit.Before;
+import org.junit.Test;
 import org.junit.runner.RunWith;
 
 /** Unit test for {@link FlacBinarySearchSeeker}. */
@@ -41,6 +42,7 @@ public final class FlacBinarySearchSeekerTest {
     }
   }
 
+  @Test
   public void testGetSeekMap_returnsSeekMapWithCorrectDuration()
       throws IOException, FlacDecoderException, InterruptedException {
     byte[] data =
@@ -52,7 +54,10 @@ public final class FlacBinarySearchSeekerTest {
 
     FlacBinarySearchSeeker seeker =
         new FlacBinarySearchSeeker(
-            decoderJni.decodeMetadata(), /* firstFramePosition= */ 0, data.length, decoderJni);
+            decoderJni.decodeStreamMetadata(),
+            /* firstFramePosition= */ 0,
+            data.length,
+            decoderJni);
 
     SeekMap seekMap = seeker.getSeekMap();
     assertThat(seekMap).isNotNull();
@@ -60,6 +65,7 @@ public final class FlacBinarySearchSeekerTest {
     assertThat(seekMap.isSeekable()).isTrue();
   }
 
+  @Test
   public void testSetSeekTargetUs_returnsSeekPending()
       throws IOException, FlacDecoderException, InterruptedException {
     byte[] data =
@@ -70,7 +76,10 @@ public final class FlacBinarySearchSeekerTest {
     decoderJni.setData(input);
     FlacBinarySearchSeeker seeker =
         new FlacBinarySearchSeeker(
-            decoderJni.decodeMetadata(), /* firstFramePosition= */ 0, data.length, decoderJni);
+            decoderJni.decodeStreamMetadata(),
+            /* firstFramePosition= */ 0,
+            data.length,
+            decoderJni);
 
     seeker.setSeekTargetUs(/* timeUs= */ 1000);
     assertThat(seeker.isSeeking()).isTrue();
