@@ -25,6 +25,8 @@ import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.Message;
+import android.support.v4.media.session.MediaSessionCompat;
 import androidx.annotation.DrawableRes;
 import androidx.annotation.IntDef;
 import androidx.annotation.Nullable;
@@ -32,7 +34,6 @@ import androidx.annotation.StringRes;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
 import androidx.media.app.NotificationCompat.MediaStyle;
-import android.support.v4.media.session.MediaSessionCompat;
 import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.ControlDispatcher;
 import com.google.android.exoplayer2.DefaultControlDispatcher;
@@ -52,7 +53,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.checkerframework.checker.nullness.qual.RequiresNonNull;
 
 /**
  * A notification manager to start, update and cancel a media style notification reflecting the
@@ -269,14 +269,7 @@ public class PlayerNotificationManager {
      */
     public void onBitmap(final Bitmap bitmap) {
       if (bitmap != null) {
-        mainHandler.post(
-            () -> {
-              if (player != null
-                  && notificationTag == currentNotificationTag
-                  && isNotificationStarted) {
-                startOrUpdateNotification(bitmap);
-              }
-            });
+        postUpdateNotificationBitmap(bitmap, notificationTag);
       }
     }
   }
@@ -302,6 +295,11 @@ public class PlayerNotificationManager {
    * and calls {@link NotificationListener#onNotificationCancelled(int, boolean)}.
    */
   private static final String ACTION_DISMISS = "com.google.android.exoplayer.dismiss";
+
+  // Internal messages.
+
+  private static final int MSG_START_OR_UPDATE_NOTIFICATION = 0;
+  private static final int MSG_UPDATE_NOTIFICATION_BITMAP = 1;
 
   /**
    * Visibility of notification on the lock screen. One of {@link
@@ -382,8 +380,26 @@ public class PlayerNotificationManager {
   private int visibility;
   @Priority private int priority;
   private boolean useChronometer;
-  private boolean wasPlayWhenReady;
-  private int lastPlaybackState;
+
+  /**
+   * @deprecated Use {@link #createWithNotificationChannel(Context, String, int, int, int,
+   *     MediaDescriptionAdapter)}.
+   */
+  @Deprecated
+  public static PlayerNotificationManager createWithNotificationChannel(
+      Context context,
+      String channelId,
+      @StringRes int channelName,
+      int notificationId,
+      MediaDescriptionAdapter mediaDescriptionAdapter) {
+    return createWithNotificationChannel(
+        context,
+        channelId,
+        channelName,
+        /* channelDescription= */ 0,
+        notificationId,
+        mediaDescriptionAdapter);
+  }
 
   /**
    * Creates a notification manager and a low-priority notification channel with the specified
@@ -397,8 +413,12 @@ public class PlayerNotificationManager {
    *
    * @param context The {@link Context}.
    * @param channelId The id of the notification channel.
-   * @param channelName A string resource identifier for the user visible name of the channel. The
-   *     recommended maximum length is 40 characters; the value may be truncated if it is too long.
+   * @param channelName A string resource identifier for the user visible name of the notification
+   *     channel. The recommended maximum length is 40 characters. The string may be truncated if
+   *     it's too long.
+   * @param channelDescription A string resource identifier for the user visible description of the
+   *     notification channel, or 0 if no description is provided. The recommended maximum length is
+   *     300 characters. The value may be truncated if it is too long.
    * @param notificationId The id of the notification.
    * @param mediaDescriptionAdapter The {@link MediaDescriptionAdapter}.
    */
@@ -406,12 +426,35 @@ public class PlayerNotificationManager {
       Context context,
       String channelId,
       @StringRes int channelName,
+      @StringRes int channelDescription,
       int notificationId,
       MediaDescriptionAdapter mediaDescriptionAdapter) {
     NotificationUtil.createNotificationChannel(
-        context, channelId, channelName, NotificationUtil.IMPORTANCE_LOW);
+        context, channelId, channelName, channelDescription, NotificationUtil.IMPORTANCE_LOW);
     return new PlayerNotificationManager(
         context, channelId, notificationId, mediaDescriptionAdapter);
+  }
+
+  /**
+   * @deprecated Use {@link #createWithNotificationChannel(Context, String, int, int, int,
+   *     MediaDescriptionAdapter, NotificationListener)}.
+   */
+  @Deprecated
+  public static PlayerNotificationManager createWithNotificationChannel(
+      Context context,
+      String channelId,
+      @StringRes int channelName,
+      int notificationId,
+      MediaDescriptionAdapter mediaDescriptionAdapter,
+      @Nullable NotificationListener notificationListener) {
+    return createWithNotificationChannel(
+        context,
+        channelId,
+        channelName,
+        /* channelDescription= */ 0,
+        notificationId,
+        mediaDescriptionAdapter,
+        notificationListener);
   }
 
   /**
@@ -422,7 +465,9 @@ public class PlayerNotificationManager {
    * @param context The {@link Context}.
    * @param channelId The id of the notification channel.
    * @param channelName A string resource identifier for the user visible name of the channel. The
-   *     recommended maximum length is 40 characters; the value may be truncated if it is too long.
+   *     recommended maximum length is 40 characters. The string may be truncated if it's too long.
+   * @param channelDescription A string resource identifier for the user visible description of the
+   *     channel, or 0 if no description is provided.
    * @param notificationId The id of the notification.
    * @param mediaDescriptionAdapter The {@link MediaDescriptionAdapter}.
    * @param notificationListener The {@link NotificationListener}.
@@ -431,11 +476,12 @@ public class PlayerNotificationManager {
       Context context,
       String channelId,
       @StringRes int channelName,
+      @StringRes int channelDescription,
       int notificationId,
       MediaDescriptionAdapter mediaDescriptionAdapter,
       @Nullable NotificationListener notificationListener) {
     NotificationUtil.createNotificationChannel(
-        context, channelId, channelName, NotificationUtil.IMPORTANCE_LOW);
+        context, channelId, channelName, channelDescription, NotificationUtil.IMPORTANCE_LOW);
     return new PlayerNotificationManager(
         context, channelId, notificationId, mediaDescriptionAdapter, notificationListener);
   }
@@ -550,7 +596,10 @@ public class PlayerNotificationManager {
     controlDispatcher = new DefaultControlDispatcher();
     window = new Timeline.Window();
     instanceId = instanceIdCounter++;
-    mainHandler = new Handler(Looper.getMainLooper());
+    //noinspection Convert2MethodRef
+    mainHandler =
+        Util.createHandler(
+            Looper.getMainLooper(), msg -> PlayerNotificationManager.this.handleMessage(msg));
     notificationManager = NotificationManagerCompat.from(context);
     playerListener = new PlayerListener();
     notificationBroadcastReceiver = new NotificationBroadcastReceiver();
@@ -613,10 +662,8 @@ public class PlayerNotificationManager {
     }
     this.player = player;
     if (player != null) {
-      wasPlayWhenReady = player.getPlayWhenReady();
-      lastPlaybackState = player.getPlaybackState();
       player.addListener(playerListener);
-      startOrUpdateNotification();
+      postStartOrUpdateNotification();
     }
   }
 
@@ -899,26 +946,17 @@ public class PlayerNotificationManager {
 
   /** Forces an update of the notification if already started. */
   public void invalidate() {
-    if (isNotificationStarted && player != null) {
-      startOrUpdateNotification();
+    if (isNotificationStarted) {
+      postStartOrUpdateNotification();
     }
   }
 
-  @Nullable
-  private Notification startOrUpdateNotification() {
-    Assertions.checkNotNull(this.player);
-    return startOrUpdateNotification(/* bitmap= */ null);
-  }
-
-  @RequiresNonNull("player")
-  @Nullable
-  private Notification startOrUpdateNotification(@Nullable Bitmap bitmap) {
-    Player player = this.player;
+  private void startOrUpdateNotification(Player player, @Nullable Bitmap bitmap) {
     boolean ongoing = getOngoing(player);
     builder = createNotification(player, builder, ongoing, bitmap);
     if (builder == null) {
       stopNotification(/* dismissedByUser= */ false);
-      return null;
+      return;
     }
     Notification notification = builder.build();
     notificationManager.notify(notificationId, notification);
@@ -929,16 +967,16 @@ public class PlayerNotificationManager {
         notificationListener.onNotificationStarted(notificationId, notification);
       }
     }
-    NotificationListener listener = notificationListener;
+    @Nullable NotificationListener listener = notificationListener;
     if (listener != null) {
       listener.onNotificationPosted(notificationId, notification, ongoing);
     }
-    return notification;
   }
 
   private void stopNotification(boolean dismissedByUser) {
     if (isNotificationStarted) {
       isNotificationStarted = false;
+      mainHandler.removeMessages(MSG_START_OR_UPDATE_NOTIFICATION);
       notificationManager.cancel(notificationId);
       context.unregisterReceiver(notificationBroadcastReceiver);
       if (notificationListener != null) {
@@ -960,13 +998,16 @@ public class PlayerNotificationManager {
    *     NotificationCompat.Builder#build()} to obtain the notification, or {@code null} if no
    *     notification should be displayed.
    */
+  // incompatible types in argument.
+  @SuppressWarnings("nullness:argument.type.incompatible")
   @Nullable
   protected NotificationCompat.Builder createNotification(
       Player player,
       @Nullable NotificationCompat.Builder builder,
       boolean ongoing,
       @Nullable Bitmap largeIcon) {
-    if (player.getPlaybackState() == Player.STATE_IDLE) {
+    if (player.getPlaybackState() == Player.STATE_IDLE
+        && (player.getCurrentTimeline().isEmpty() || playbackPreparer == null)) {
       builderActions = null;
       return null;
     }
@@ -1019,10 +1060,9 @@ public class PlayerNotificationManager {
     // Changing "showWhen" causes notification flicker if SDK_INT < 21.
     if (Util.SDK_INT >= 21
         && useChronometer
+        && player.isPlaying()
         && !player.isPlayingAd()
-        && !player.isCurrentWindowDynamic()
-        && player.getPlayWhenReady()
-        && player.getPlaybackState() == Player.STATE_READY) {
+        && !player.isCurrentWindowDynamic()) {
       builder
           .setWhen(System.currentTimeMillis() - player.getContentPosition())
           .setShowWhen(true)
@@ -1087,7 +1127,7 @@ public class PlayerNotificationManager {
       stringActions.add(ACTION_REWIND);
     }
     if (usePlayPauseActions) {
-      if (isPlaying(player)) {
+      if (shouldShowPauseButton(player)) {
         stringActions.add(ACTION_PAUSE);
       } else {
         stringActions.add(ACTION_PLAY);
@@ -1131,10 +1171,10 @@ public class PlayerNotificationManager {
     if (skipPreviousActionIndex != -1) {
       actionIndices[actionCounter++] = skipPreviousActionIndex;
     }
-    boolean playWhenReady = player.getPlayWhenReady();
-    if (pauseActionIndex != -1 && playWhenReady) {
+    boolean shouldShowPauseButton = shouldShowPauseButton(player);
+    if (pauseActionIndex != -1 && shouldShowPauseButton) {
       actionIndices[actionCounter++] = pauseActionIndex;
-    } else if (playActionIndex != -1 && !playWhenReady) {
+    } else if (playActionIndex != -1 && !shouldShowPauseButton) {
       actionIndices[actionCounter++] = playActionIndex;
     }
     if (skipNextActionIndex != -1) {
@@ -1163,7 +1203,7 @@ public class PlayerNotificationManager {
             || (window.isDynamic && !window.isSeekable))) {
       seekTo(player, previousWindowIndex, C.TIME_UNSET);
     } else {
-      seekTo(player, 0);
+      seekTo(player, windowIndex, /* positionMs= */ 0);
     }
   }
 
@@ -1183,33 +1223,65 @@ public class PlayerNotificationManager {
 
   private void rewind(Player player) {
     if (player.isCurrentWindowSeekable() && rewindMs > 0) {
-      seekTo(player, Math.max(player.getCurrentPosition() - rewindMs, 0));
+      seekToOffset(player, /* offsetMs= */ -rewindMs);
     }
   }
 
   private void fastForward(Player player) {
     if (player.isCurrentWindowSeekable() && fastForwardMs > 0) {
-      seekTo(player, player.getCurrentPosition() + fastForwardMs);
+      seekToOffset(player, /* offsetMs= */ fastForwardMs);
     }
   }
 
-  private void seekTo(Player player, long positionMs) {
+  private void seekToOffset(Player player, long offsetMs) {
+    long positionMs = player.getCurrentPosition() + offsetMs;
+    long durationMs = player.getDuration();
+    if (durationMs != C.TIME_UNSET) {
+      positionMs = Math.min(positionMs, durationMs);
+    }
+    positionMs = Math.max(positionMs, 0);
     seekTo(player, player.getCurrentWindowIndex(), positionMs);
   }
 
   private void seekTo(Player player, int windowIndex, long positionMs) {
-    long duration = player.getDuration();
-    if (duration != C.TIME_UNSET) {
-      positionMs = Math.min(positionMs, duration);
-    }
-    positionMs = Math.max(positionMs, 0);
     controlDispatcher.dispatchSeekTo(player, windowIndex, positionMs);
   }
 
-  private boolean isPlaying(Player player) {
+  private boolean shouldShowPauseButton(Player player) {
     return player.getPlaybackState() != Player.STATE_ENDED
         && player.getPlaybackState() != Player.STATE_IDLE
         && player.getPlayWhenReady();
+  }
+
+  private void postStartOrUpdateNotification() {
+    if (!mainHandler.hasMessages(MSG_START_OR_UPDATE_NOTIFICATION)) {
+      mainHandler.sendEmptyMessage(MSG_START_OR_UPDATE_NOTIFICATION);
+    }
+  }
+
+  private void postUpdateNotificationBitmap(Bitmap bitmap, int notificationTag) {
+    mainHandler
+        .obtainMessage(
+            MSG_UPDATE_NOTIFICATION_BITMAP, notificationTag, C.INDEX_UNSET /* ignored */, bitmap)
+        .sendToTarget();
+  }
+
+  private boolean handleMessage(Message msg) {
+    switch (msg.what) {
+      case MSG_START_OR_UPDATE_NOTIFICATION:
+        if (player != null) {
+          startOrUpdateNotification(player, /* bitmap= */ null);
+        }
+        break;
+      case MSG_UPDATE_NOTIFICATION_BITMAP:
+        if (player != null && isNotificationStarted && currentNotificationTag == msg.arg1) {
+          startOrUpdateNotification(player, (Bitmap) msg.obj);
+        }
+        break;
+      default:
+        return false;
+    }
+    return true;
   }
 
   private static Map<String, NotificationCompat.Action> createPlaybackActions(
@@ -1276,32 +1348,38 @@ public class PlayerNotificationManager {
   private class PlayerListener implements Player.EventListener {
 
     @Override
-    public void onPlayerStateChanged(boolean playWhenReady, int playbackState) {
-      if (wasPlayWhenReady != playWhenReady || lastPlaybackState != playbackState) {
-        startOrUpdateNotification();
-        wasPlayWhenReady = playWhenReady;
-        lastPlaybackState = playbackState;
-      }
+    public void onPlayerStateChanged(boolean playWhenReady, @Player.State int playbackState) {
+      postStartOrUpdateNotification();
     }
 
     @Override
-    public void onTimelineChanged(Timeline timeline, @Nullable Object manifest, int reason) {
-      startOrUpdateNotification();
+    public void onIsPlayingChanged(boolean isPlaying) {
+      postStartOrUpdateNotification();
+    }
+
+    @Override
+    public void onTimelineChanged(Timeline timeline, int reason) {
+      postStartOrUpdateNotification();
     }
 
     @Override
     public void onPlaybackParametersChanged(PlaybackParameters playbackParameters) {
-      startOrUpdateNotification();
+      postStartOrUpdateNotification();
     }
 
     @Override
     public void onPositionDiscontinuity(int reason) {
-      startOrUpdateNotification();
+      postStartOrUpdateNotification();
     }
 
     @Override
-    public void onRepeatModeChanged(int repeatMode) {
-      startOrUpdateNotification();
+    public void onRepeatModeChanged(@Player.RepeatMode int repeatMode) {
+      postStartOrUpdateNotification();
+    }
+
+    @Override
+    public void onShuffleModeEnabledChanged(boolean shuffleModeEnabled) {
+      postStartOrUpdateNotification();
     }
   }
 
@@ -1322,7 +1400,7 @@ public class PlayerNotificationManager {
             playbackPreparer.preparePlayback();
           }
         } else if (player.getPlaybackState() == Player.STATE_ENDED) {
-          controlDispatcher.dispatchSeekTo(player, player.getCurrentWindowIndex(), C.TIME_UNSET);
+          seekTo(player, player.getCurrentWindowIndex(), C.TIME_UNSET);
         }
         controlDispatcher.dispatchSetPlayWhenReady(player, /* playWhenReady= */ true);
       } else if (ACTION_PAUSE.equals(action)) {
